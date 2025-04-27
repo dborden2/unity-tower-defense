@@ -41,7 +41,7 @@ public class EnemyController : MonoBehaviour
     private Transform currentWaypoint;
 
     [SerializeField] private float speed = 4f;
-    [SerializeField] private int health = 100;
+    [SerializeField] private float health = 100;
 
 
     // Start is called once before the first execution of Update after the
@@ -100,7 +100,7 @@ public class EnemyController : MonoBehaviour
 
     // Reduces enemy's health by the specified damage amount. When health falls
     // below zero, triggers the handler for losing all health.
-    public void TakeDamage(int damage)
+    public void TakeDamage(float damage)
     {
         if (damage < 0)
         {
@@ -109,6 +109,7 @@ public class EnemyController : MonoBehaviour
             damage = 0;
         }
         health -= damage;
+        Debug.Log($"Ouch! I took {damage} damage!");
         if (health < 0)
         {
             HandleLostAllHealth();
@@ -116,7 +117,7 @@ public class EnemyController : MonoBehaviour
     }
 
     // Returns the current remaining health of the enemy
-    public int GetCurrentHealth()
+    public float GetCurrentHealth()
     {
         return health;
     }

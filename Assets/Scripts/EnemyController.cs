@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System;
 using static UnityEngine.EventSystems.EventTrigger;
 
+
 // Author: Brett DeWitt
 
 // Created: 4.24.2025
@@ -12,13 +13,16 @@ using static UnityEngine.EventSystems.EventTrigger;
 
 // Prototype for basic enemy creep.
 // Must be assigned a Lane. The Lane must have child objects which comprise the
-// waypoints of the lane. The enemy will visit each of the waypoints in
-// sequence until all waypoints have been visited, at which point
-// HandleReachedGoal() will be called.
+// waypoints of the lane. The Enemy will visit each of the waypoints in
+// sequence until all waypoints have been visited, at which point the goal
+// sequence will be triggered. If the Enemy loses all of its health, the
+// death sequence will be triggered.
 
 // To assign a lane to the Enemy, use the public function SetLane().
 // Example:
-//    GameObject enemyGO = Instantiate(enemyPrefab, spawnPoint.position, spawnPoint.rotation);
+//    GameObject enemyGO = Instantiate(enemyPrefab,
+//                                     spawnPoint.position,
+//                                     spawnPoint.rotation);
 //    EnemyController enemy = enemyGO.GetComponent<EnemyController>();
 //    enemy.SetLane(laneTransform);
 
@@ -40,7 +44,8 @@ public class EnemyController : MonoBehaviour
     [SerializeField] private int health = 100;
 
 
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
+    // Start is called once before the first execution of Update after the
+    // MonoBehaviour is created
     void Start()
     {
         GetWaypointsFromLane();
@@ -50,12 +55,15 @@ public class EnemyController : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        if (AtCurrentWaypoint()) {
+        if (AtCurrentWaypoint())
+        {
             AlignWithWaypoint();
-            if (VistiedAllWaypoints())
+            if (VisitedAllWaypoints())
             {
                 HandleReachedGoal();
-            } else {
+            }
+            else
+            {
                 SetNextWaypoint();
             }
         }
@@ -69,17 +77,37 @@ public class EnemyController : MonoBehaviour
 
 
     // Sets the lane for the enemy to follow. Children of lane will be treated
-    // as waypoints
+    // as waypoints.
+    // If lane has no waypoints, enemy will be destroyed.
+    // Throws ArgumentNullException if lane is Null.
     public void SetLane(Transform lane)
     {
+        if (lane == null)
+        {
+            throw new ArgumentNullException("Lane must not be null");
+        }
         this.lane = lane;
+
         GetWaypointsFromLane();
+
+        if (waypoints.Count <= 0)
+        {
+            Debug.Log("Lane has no waypoints. Enemy cannot proceed and will" +
+                      "be destroyed.");
+            Die();
+        }
     }
 
     // Reduces enemy's health by the specified damage amount. When health falls
     // below zero, triggers the handler for losing all health.
     public void TakeDamage(int damage)
     {
+        if (damage < 0)
+        {
+            Debug.Log("Damage must be a non-negative value. Setting damage" +
+                      "to 0.");
+            damage = 0;
+        }
         health -= damage;
         if (health < 0)
         {
@@ -103,12 +131,19 @@ public class EnemyController : MonoBehaviour
     // The lane must first be set with SetLane()
     private void GetWaypointsFromLane()
     {
-        foreach (Transform waypoint in lane) {
-            waypoints.Add(waypoint);
+        if (lane == null)
+        {
+            Debug.Log("GetWaypointsFromLane must have non-null lane. Use" +
+                "SetLane() to assign a lane to Enemy.");
         }
-        // Handle cases
-        //   no lane is set
-        //   lane has no waypoints
+        else
+        {
+            waypoints.Clear();
+            foreach (Transform waypoint in lane)
+            {
+                waypoints.Add(waypoint);
+            }
+        }
     }
 
     // Sets current position to the current waypoint, making sure enemy
@@ -126,6 +161,27 @@ public class EnemyController : MonoBehaviour
     // that the enemy's height does not change.
     private void SetNextWaypoint()
     {
+        if (waypoints == null)
+        {
+            Debug.Log("Cannot set next waypoint. Waypoints is null.");
+            Die();
+            return;
+        }
+
+        if (waypoints.Count == 0)
+        {
+            Debug.Log("Cannot set next waypoint. Waypoints list is empty.");
+            Die();
+            return;
+        }
+
+        if (waypointIndex < 0 || waypointIndex >= waypoints.Count)
+        {
+            Debug.Log("Cannt set next waypoint. Index is out of range.");
+            Die();
+            return;
+        }
+
         currentWaypoint = waypoints[waypointIndex];
         destination = new Vector3(currentWaypoint.transform.position.x,
                                   transform.position.y,
@@ -144,16 +200,23 @@ public class EnemyController : MonoBehaviour
     // a specified margin
     private bool AtCurrentWaypoint()
     {
-        float margin = 0.1f;
-        float distanceFromWaypoint = Vector3.Distance(transform.position, destination);
-        return (distanceFromWaypoint < margin);
-        // Handle cases
-        //   no current waypoint set
+        if (currentWaypoint == null)
+        {
+            Debug.Log("No current waypoint set.");
+            return false;
+        }
+        else
+        {
+            float margin = 0.1f;
+            float distanceFromWaypoint = Vector3.Distance(transform.position,
+                                                          destination);
+            return (distanceFromWaypoint < margin);
+        }
     }
 
     // Returns true if the last visited waypoint was the final waypoint in the
     // waypoints list
-    private bool VistiedAllWaypoints()
+    private bool VisitedAllWaypoints()
     {
         return (waypointIndex >= lane.childCount);
     }
@@ -161,7 +224,7 @@ public class EnemyController : MonoBehaviour
     // Handles logic when the enemy has visited the final waypoint
     private void HandleReachedGoal()
     {
-        // penalize player, etc
+        // penalize player
         // animation?
         // play sounds?
         // destroy self
@@ -171,7 +234,9 @@ public class EnemyController : MonoBehaviour
     // Moves towards the current waypoint
     private void MoveTowardWaypoint()
     {
-        Vector3 moveTowards = Vector3.MoveTowards(transform.position, destination, speed * Time.deltaTime);
+        Vector3 moveTowards = Vector3.MoveTowards(transform.position,
+                                                  destination,
+                                                  speed * Time.deltaTime);
         transform.position = moveTowards;
     }
 
@@ -190,5 +255,6 @@ public class EnemyController : MonoBehaviour
     {
         Destroy(gameObject);
     }
-
 }
+
+
